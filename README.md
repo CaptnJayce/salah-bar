@@ -1,62 +1,59 @@
 # salah-bar
 
-Waybar module showing your current prayer period and how long until the next one.
+Waybar module showing your current prayer and a countdown to the next one.
 
 ```
 Maghrib · 43m
 ```
 
-Hover for the full day's schedule. When a prayer is 15 minutes out, an `imminent` CSS class gets applied — style it however you like.
+Hover for the full day's schedule. 15 minutes out from a prayer, the `imminent` CSS class kicks in.
 
 ---
 
 ## Dependencies
 
 - Python 3.9+
-- `requests` (`pip install requests`)
-- An internet connection — times come from the [Aladhan API](https://aladhan.com) and get cached locally once a day
+- `requests` — `sudo pacman -S python-requests` on Arch, `pip install requests` elsewhere
+- Internet on first run — times are pulled from the [Aladhan API](https://aladhan.com) and cached daily
 
 ---
 
 ## Installation
 
-1. Clone the repo:
-
 ```bash
-git clone https://github.com/yourusername/salah-bar ~/.local/share/salah-bar
+git clone https://github.com/CaptnJayce/salah-bar ~/.local/share/salah-bar
+chmod +x ~/.local/share/salah-bar/salah_bar.py
+sudo pacman -S python-requests
 ```
 
-2. Install the dependency:
-
-```bash
-pip install requests
-```
-
-3. Copy the example config:
-
-```bash
-mkdir -p ~/.config/salah-bar
-cp config.example.json ~/.config/salah-bar/config.json
-```
-
-4. Edit `~/.config/salah-bar/config.json` with your location and method.
+No config file. Everything lives in your Waybar config.
 
 ---
 
-## Configuration
+## Waybar
 
-```json
-{
-    "latitude": 51.5074,
-    "longitude": -0.1278,
-    "method": "MoonsightingCommittee",
-    "asr": "Standard"
-}
+```jsonc
+"custom/salah": {
+    "exec": "~/.local/share/salah-bar/salah_bar.py --lat 51.5074 --lon -0.1278 --method MuslimWorldLeague --asr Standard",
+    "interval": 30,
+    "return-type": "json"
+},
 ```
 
-**`latitude` / `longitude`** — decimal coordinates. Falls back to Mecca if not set.
+Add `"custom/salah"` to whichever modules list you want.
 
-**`method`** — which calculation authority to use:
+---
+
+## Arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `--lat` | `21.3891` | Latitude — defaults to Mecca |
+| `--lon` | `39.8579` | Longitude — defaults to Mecca |
+| `--method` | `MuslimWorldLeague` | Calculation method (see below) |
+| `--asr` | `Standard` | `Standard` or `Hanafi` |
+
+**Calculation methods:**
 
 | Value | Authority |
 |---|---|
@@ -69,30 +66,9 @@ cp config.example.json ~/.config/salah-bar/config.json
 | `Shia` | Shia Ithna Ansari |
 | `MoonsightingCommittee` | Moonsighting Committee Worldwide |
 
-**`asr`** — `Standard` (Shafi/Maliki/Hanbali) or `Hanafi`.
-
 ---
 
-## Waybar
-
-Add to your `config.jsonc`:
-
-```json
-"custom/salah": {
-    "exec": "python3 /path/to/salah-bar/salah_bar.py",
-    "interval": 60,
-    "return-type": "json"
-},
-```
-
-Then drop `"custom/salah"` into whichever modules list you want.
-
-### Styling
-
-Two CSS classes:
-
-- `.upcoming` — default state
-- `.imminent` — fires when the next prayer is 15 minutes or less away
+## Styling
 
 ```css
 #custom-salah {
@@ -108,5 +84,5 @@ Two CSS classes:
 
 ## Notes
 
-- Times are fetched once a day and cached at `~/.cache/salah-bar/cache.json`. Both today and tomorrow get fetched on startup so there's always a next prayer ready, including after Isha.
-- If the API is down and the cache is empty, the script errors out — Waybar shows nothing rather than wrong times.
+- Times are cached at `~/.cache/salah-bar/cache.json` and refreshed once a day. Today and tomorrow both get fetched on startup, so there's always a next prayer available after Isha.
+- If the API is unreachable and the cache is empty, the script exits cleanly — Waybar shows nothing rather than stale or wrong times.
