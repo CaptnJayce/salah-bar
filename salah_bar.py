@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 
+import argparse
 from datetime import date, datetime, timedelta
 import json
 import os
 import requests
 import sys
 
-config_path = os.path.expanduser("~/.config/salah-bar/config.json")
 cache_path = os.path.expanduser("~/.cache/salah-bar/cache.json")
-
-with open(config_path) as f:
-    config = json.load(f)
 
 PRAYERS = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"]
 
@@ -37,6 +34,15 @@ METHOD_MAP = {
 MECCA = (21.3891, 39.8579)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Waybar prayer times module")
+    parser.add_argument("--lat", type=float, default=MECCA[0])
+    parser.add_argument("--lon", type=float, default=MECCA[1])
+    parser.add_argument("--method", default="MuslimWorldLeague", choices=METHOD_MAP.keys())
+    parser.add_argument("--asr", default="Standard", choices=["Standard", "Hanafi"])
+    return parser.parse_args()
+
+
 def load_cache():
     if os.path.exists(cache_path):
         with open(cache_path) as f:
@@ -53,16 +59,14 @@ def save_cache(cache):
         json.dump(pruned, f)
 
 
-def fetch_prayer_times(target_date):
-    method = METHOD_MAP.get(config.get("method"), 3)
-    lat = config.get("latitude") or MECCA[0]
-    lon = config.get("longitude") or MECCA[1]
-    school = 1 if config.get("asr") == "Hanafi" else 0
+def fetch_prayer_times(target_date, args):
+    method = METHOD_MAP.get(args.method, 3)
+    school = 1 if args.asr == "Hanafi" else 0
 
     url = f"https://api.aladhan.com/v1/timings/{target_date.strftime('%d-%m-%Y')}"
     response = requests.get(
         url,
-        params={"latitude": lat, "longitude": lon, "method": method, "school": school},
+        params={"latitude": args.lat, "longitude": args.lon, "method": method, "school": school},
         timeout=5,
     )
     response.raise_for_status()
@@ -71,14 +75,14 @@ def fetch_prayer_times(target_date):
     return {k.lower(): v for k, v in timings.items()}
 
 
-def get_prayer_times(target_date):
+def get_prayer_times(target_date, args):
     key = target_date.isoformat()
     cache = load_cache()
 
     if key in cache:
         return cache[key]
 
-    timings = fetch_prayer_times(target_date)
+    timings = fetch_prayer_times(target_date, args)
     cache[key] = timings
     save_cache(cache)
     return timings
@@ -124,11 +128,12 @@ def format_output(current, next_time, all_times):
 
 if __name__ == "__main__":
     try:
+        args = parse_args()
         today = date.today()
         tomorrow = today + timedelta(days=1)
 
-        raw_today = get_prayer_times(today)
-        raw_tomorrow = get_prayer_times(tomorrow)
+        raw_today = get_prayer_times(today, args)
+        raw_tomorrow = get_prayer_times(tomorrow, args)
 
         prayer_times = parse_times(raw_today, today)
         tomorrow_fajr = parse_times(raw_tomorrow, tomorrow)["fajr"]
