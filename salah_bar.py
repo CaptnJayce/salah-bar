@@ -31,6 +31,12 @@ METHOD_MAP = {
     "MoonsightingCommittee": 15,
 }
 
+ADJUSTMENT_MAP = {
+    "AngleBased": 3,
+    "OneSeventh": 2,
+    "MiddleOfTheNight": 1,
+}
+
 MECCA = (21.3891, 39.8579)
 
 
@@ -40,6 +46,7 @@ def parse_args():
     parser.add_argument("--lon", type=float, default=MECCA[1])
     parser.add_argument("--method", default="MuslimWorldLeague", choices=METHOD_MAP.keys())
     parser.add_argument("--asr", default="Standard", choices=["Standard", "Hanafi"])
+    parser.add_argument("--adjustment-method", default="OneSeventh", choices=ADJUSTMENT_MAP.keys())
     return parser.parse_args()
 
 
@@ -63,12 +70,14 @@ def fetch_prayer_times(target_date, args):
     method = METHOD_MAP.get(args.method, 3)
     school = 1 if args.asr == "Hanafi" else 0
 
+    adjustment = ADJUSTMENT_MAP.get(args.adjustment_method)
+
     url = f"https://api.aladhan.com/v1/timings/{target_date.strftime('%d-%m-%Y')}"
-    response = requests.get(
-        url,
-        params={"latitude": args.lat, "longitude": args.lon, "method": method, "school": school},
-        timeout=5,
-    )
+    params = {"latitude": args.lat, "longitude": args.lon, "method": method, "school": school}
+    if adjustment is not None:
+        params["latitudeAdjustmentMethod"] = adjustment
+
+    response = requests.get(url, params=params, timeout=5)
     response.raise_for_status()
 
     timings = response.json()["data"]["timings"]
